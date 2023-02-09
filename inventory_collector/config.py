@@ -1,93 +1,81 @@
 """Module containing inventory-exporter configuration classes."""
-from dataclasses import dataclass
-from typing import Dict, List
+from dataclasses import dataclass, fields
+from typing import ClassVar, Dict, List, get_args, get_origin
 
 from inventory_collector.exception import ConfigMissingKeyError
 
 
 @dataclass
-class _ConfigSettings:
+class _BaseConfig:
+
+    NAME: ClassVar[str] = ""
+
+    @classmethod
+    def from_dict(cls, source: Dict) -> '_BaseConfig':
+        """Factory method that creates config object from raw config data.
+
+        This method finds values for each dataclass attributes specified in the class.
+        It's designed to handle:
+            * direct values (key: value)
+            * list of simple values (key: [value1, value2])
+            * simple nested config structures (section_name: {<section_configs>})
+            * list of nested config structures (section_name:
+                [{section_config}, {section_config}]
+
+        :param source: Dict data from config to populate specific config subsection.
+        :return: Initiated instance of the class.
+        """
+        kwargs = {}
+        try:
+            for field in fields(cls):
+                origin_type = get_origin(field.type)
+                setting_value = source[field.name]
+                if origin_type == list:
+                    # Handle lists of simple and nested config values
+                    nested_type = get_args(field.type)[0]
+                    if issubclass(nested_type, _BaseConfig):
+                        kwargs[field.name] = [nested_type(**value) for value in setting_value]
+                    else:
+                        kwargs[field.name] = setting_value
+                elif issubclass(field.type, _BaseConfig):
+                    kwargs[field.name] = field.type.from_dict(setting_value)
+                else:
+                    kwargs[field.name] = setting_value
+        except KeyError as exc:
+            raise ConfigMissingKeyError(f"{cls.NAME}.{exc.args[0]}") from exc
+
+        return cls(**kwargs)
+
+
+@dataclass
+class _ConfigSettings(_BaseConfig):
     """Definition for 'settings' subsection of main config."""
+
+    NAME = "settings"
+
     collection_path: str
     juju_data: str
     customer: str
     site: str
 
-    @classmethod
-    def from_dict(cls, source: Dict) -> '_ConfigSettings':
-        """Factory method that creates object from raw dict data.
-
-        :param source: Data from 'settings' subsection of main config.
-        :return: Initiated instance of this class.
-        """
-        try:
-            collection_path = source["collection_path"]
-            juju_data = source["juju_data"]
-            customer = source["customer"]
-            site = source["site"]
-        except KeyError as exc:
-            raise ConfigMissingKeyError(f"settings.{exc.args[0]}") from exc
-        return cls(
-            collection_path=collection_path,
-            juju_data=juju_data,
-            customer=customer,
-            site=site,
-        )
-
 
 @dataclass
-class _ConfigTarget:
+class _ConfigTarget(_BaseConfig):
     """Definition for 'target' subsection of main config."""
+
+    NAME = "target"
+
     endpoint: str
     hostname: str
     customer: str
     site: str
     model: str
 
-    @classmethod
-    def from_dict(cls, source: Dict) -> '_ConfigTarget':
-        """Factory method that creates object from raw dict data.
-
-        :param source: Data from 'target' subsection of main config.
-        :return: Initiated instance of this class.
-        """
-        try:
-            endpoint = source["endpoint"]
-            hostname = source["hostname"]
-            customer = source["customer"]
-            site = source["site"]
-            model = source["model"]
-        except KeyError as exc:
-            raise ConfigMissingKeyError(f"target.{exc.args[0]}") from exc
-        return cls(
-            endpoint=endpoint,
-            hostname=hostname,
-            customer=customer,
-            site=site,
-            model=model,
-        )
-
 
 @dataclass
-class Config:
+class Config(_BaseConfig):
     """Object representation of a complete config file."""
     settings: _ConfigSettings
     models: List[str]
     targets: List[_ConfigTarget]
 
-    @classmethod
-    def from_dict(cls, source: Dict) -> 'Config':
-        """Factory method that takes a raw dictionary data from yaml config.
-
-        :param source: Dictionary data loaded from confi file.
-        :return: Initiated instance of this class, representing complete configuration.
-        """
-        try:
-            settings = _ConfigSettings.from_dict(source["settings"])
-            models = source["models"]
-            targets = [_ConfigTarget.from_dict(target) for target in source["targets"]]
-        except KeyError as exc:
-            raise ConfigMissingKeyError(f"{exc.args[0]}") from exc
-        except ConfigMissingKeyError as exc:
-            raise ConfigMissingKeyError(f"{exc.key_name}") from exc
-        return cls(settings=settings, models=models, targets=targets)
