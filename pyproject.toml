@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "inventory-collector"
+version = "0.1.0"
+description = "Client collecting data exported by https://github.com/dparv/inventory-exporter"
+authors = ["Diko Parvanov <diko.parvanov@canonical.com>"]
+license = "GPL-3.0-or-later"
+readme = "README.md"
+packages = [{include = "inventory_collector"}]
+
+[tool.poetry.dependencies]
+python = "^3.8.1"
+requests = "^2.28.2"
+PyYAML = "^6.0"
+juju = "2.9.38.1"
+
+[tool.poetry.scripts]
+inventory-collector = "inventory_collector.collector:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.flake8]
+ignore = []
+exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'report']
+max-line-length = 90
+max-complexity = 10
+per-file-ignores = "__init__.py:F401"
+
+[tool.black]
+line-length = 90
+exclude = '''
+/(
+    | .eggs
+    | .git
+    | .tox
+    | .venv
+    | .build
+    | report
+)/
+'''
+
+[tool.isort]
+profile = "black"
+skip_glob = '''
+/(
+    | .eggs
+    | .git
+    | .tox
+    | .venv
+    | .build
+    | report
+)/
+'''
