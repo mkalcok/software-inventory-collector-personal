@@ -11,6 +11,7 @@ import requests
 import yaml
 from juju import jasyncio
 from juju.model import Controller
+from juju.errors import JujuAPIError
 
 from inventory_collector import Config, ConfigError, ConfigMissingKeyError
 
@@ -89,31 +90,40 @@ async def juju_data(config: Config):
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     customer = config.settings.customer
     site = config.settings.site
-    os.environ["JUJU_DATA"] = config.settings.juju_data
     output_dir = config.settings.collection_path
 
     controller = Controller()
-    await controller.connect()
+    await controller.connect(
+        endpoint=config.juju_controller.endpoint,
+        username=config.juju_controller.username,
+        password=config.juju_controller.password,
+        cacert=config.juju_controller.ca_cert,
+    )
 
     model_uuids = await controller.model_uuids()
 
-    for uuid in model_uuids:
-        model = await controller.get_model(uuid)
-        await model.connect()
+    for model_name in model_uuids.keys():
+        model = await controller.get_model(model_name)
         status = await model.get_status()
-        bundle = await model.export_bundle()
+        try:
+            bundle = await model.export_bundle()
+        except JujuAPIError as exc:
+            if str(exc) == "nothing to export as there are no applications":
+                bundle = "{}"
+            else:
+                raise exc
         await model.disconnect()
         status_path = os.path.join(
             output_dir,
-            f"juju_status_@_{uuid}_@_{timestamp}",
+            f"juju_status_@_{model_name}_@_{timestamp}",
         )
         bundle_path = os.path.join(
             output_dir,
-            f"juju_bundle_@_{uuid}_@_{timestamp}",
+            f"juju_bundle_@_{model_name}_@_{timestamp}",
         )
         with open(status_path, "w", encoding="UTF-8") as file:
             file.write(status.to_json())
-        tar_name = f"{customer}_@_{site}_@_{uuid}_@_{timestamp}.tar"
+        tar_name = f"{customer}_@_{site}_@_{model_name}_@_{timestamp}.tar"
         tar_path = os.path.join(
             output_dir,
             tar_name,
@@ -130,7 +140,7 @@ async def juju_data(config: Config):
                 continue
             with open(bundle_path, "w", encoding="UTF-8") as file:
                 file.write(bundle_json)
-            tar_name = f"{customer}_@_{site}_@_{uuid}_@_{timestamp}.tar"
+            tar_name = f"{customer}_@_{site}_@_{model_name}_@_{timestamp}.tar"
             tar_path = os.path.join(
                 output_dir,
                 tar_name,

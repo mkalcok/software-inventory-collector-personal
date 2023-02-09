@@ -54,7 +54,6 @@ class _ConfigSettings(_BaseConfig):
     NAME = "settings"
 
     collection_path: str
-    juju_data: str
     customer: str
     site: str
 
@@ -73,9 +72,22 @@ class _ConfigTarget(_BaseConfig):
 
 
 @dataclass
+class _ConfigJujuController(_BaseConfig):
+    """Definition for 'juju_controller' subsection of main config."""
+
+    NAME = "juju_controller"
+
+    endpoint: str
+    ca_cert: str
+    username: str
+    password: str
+
+
+@dataclass
 class Config(_BaseConfig):
     """Object representation of a complete config file."""
     settings: _ConfigSettings
     models: List[str]
     targets: List[_ConfigTarget]
+    juju_controller: _ConfigJujuController
 

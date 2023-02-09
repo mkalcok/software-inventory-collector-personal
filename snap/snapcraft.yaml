@@ -7,7 +7,7 @@ description: |
   https://github.com/dparv/charm-inventory-exporter
 
 grade: devel
-confinement: devmode
+confinement: strict
 
 plugs:
   dot-local-share-juju:
