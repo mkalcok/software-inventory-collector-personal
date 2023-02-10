@@ -7,11 +7,10 @@ from inventory_collector.exception import ConfigMissingKeyError
 
 @dataclass
 class _BaseConfig:
-
     NAME: ClassVar[str] = ""
 
     @classmethod
-    def from_dict(cls, source: Dict) -> '_BaseConfig':
+    def from_dict(cls, source: Dict) -> "_BaseConfig":
         """Factory method that creates config object from raw config data.
 
         This method finds values for each dataclass attributes specified in the class.
@@ -34,7 +33,9 @@ class _BaseConfig:
                     # Handle lists of simple and nested config values
                     nested_type = get_args(field.type)[0]
                     if issubclass(nested_type, _BaseConfig):
-                        kwargs[field.name] = [nested_type(**value) for value in setting_value]
+                        kwargs[field.name] = [
+                            nested_type(**value) for value in setting_value
+                        ]
                     else:
                         kwargs[field.name] = setting_value
                 elif issubclass(field.type, _BaseConfig):
@@ -86,8 +87,8 @@ class _ConfigJujuController(_BaseConfig):
 @dataclass
 class Config(_BaseConfig):
     """Object representation of a complete config file."""
+
     settings: _ConfigSettings
     models: List[str]
     targets: List[_ConfigTarget]
     juju_controller: _ConfigJujuController
-

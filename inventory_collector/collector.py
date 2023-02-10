@@ -10,8 +10,8 @@ import tarfile
 import requests
 import yaml
 from juju import jasyncio
+from juju.errors import JujuAPIError, JujuError
 from juju.model import Controller
-from juju.errors import JujuAPIError
 
 from inventory_collector import Config, ConfigError, ConfigMissingKeyError
 
@@ -44,8 +44,10 @@ def create_tars(config: Config):
     os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     for model in config.models:
-        tar_name = (f"{config.settings.customer}_@_{config.settings.site}_@"
-                    f"_{model}_@_{timestamp}.tar")
+        tar_name = (
+            f"{config.settings.customer}_@_{config.settings.site}_@"
+            f"_{model}_@_{timestamp}.tar"
+        )
         tar_path = os.path.join(
             output_dir,
             tar_name,
@@ -85,13 +87,7 @@ def collect(config: Config):
             os.remove(path)
 
 
-async def juju_data(config: Config):
-    """Query Juju controller and collect information about models."""
-    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    customer = config.settings.customer
-    site = config.settings.site
-    output_dir = config.settings.collection_path
-
+async def get_controller(config: Config) -> Controller:
     controller = Controller()
     await controller.connect(
         endpoint=config.juju_controller.endpoint,
@@ -99,6 +95,15 @@ async def juju_data(config: Config):
         password=config.juju_controller.password,
         cacert=config.juju_controller.ca_cert,
     )
+    return controller
+
+
+async def juju_data(config: Config, controller: Controller):
+    """Query Juju controller and collect information about models."""
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    customer = config.settings.customer
+    site = config.settings.site
+    output_dir = config.settings.collection_path
 
     model_uuids = await controller.model_uuids()
 
@@ -161,6 +166,14 @@ def main():
         help="Configuration file path.",
         default="/var/snap/inventory-collector/current/config.yaml",
     )
+    arg_parser.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Verifies succesfull connection to the controller but no output "
+             "is produced.",
+    )
     args = arg_parser.parse_args()
 
     try:
@@ -169,9 +182,20 @@ def main():
         print(f"Failed to load config: {exc}")
         sys.exit(1)
 
+    try:
+        controller: Controller = jasyncio.run(get_controller(config))
+    except JujuError as exc:
+        print(f"Failed to connect to juju controller: {exc}")
+        sys.exit(1)
+
+    if args.dry_run:
+        jasyncio.run(controller.disconnect())
+        print("OK.")
+        sys.exit(0)
+
     create_tars(config)
     collect(config)
-    jasyncio.run(juju_data(config))
+    jasyncio.run(juju_data(config, controller))
 
 
 if __name__ == "__main__":
