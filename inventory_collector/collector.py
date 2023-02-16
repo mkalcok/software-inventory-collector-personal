@@ -3,14 +3,14 @@ import datetime
 import json
 import os
 import tarfile
-from tempfile import TemporaryFile
+from tempfile import NamedTemporaryFile
 
 import requests
 import yaml
-from juju.errors import JujuAPIError
 from juju.controller import Controller
+from juju.errors import JujuAPIError
 
-from inventory_collector import Config
+from inventory_collector.config import Config
 from inventory_collector.exception import CollectionError
 
 ENDPOINTS = ["dpkg", "snap", "kernel"]
@@ -18,34 +18,38 @@ ENDPOINTS = ["dpkg", "snap", "kernel"]
 TIMESTAMP = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
 
+def _add_file_to_tar(file_name: str, content: str, tar_path: str) -> None:
+    """Write content to a file with specified name and add it to tarball.
+
+    :param file_name: Resulting name of the file in tarball
+    :param content: Content of the file
+    :param tar_path: path to tarball to which the file will be added.
+    :return: None
+    """
+    with NamedTemporaryFile() as temp_file:
+        temp_file.write(content.encode("UTF-8"))
+        temp_file.flush()
+        with tarfile.open(tar_path, "a", encoding="UTF-8") as tar_file:
+            tar_file.add(temp_file.name, arcname=file_name)
+
+
 def get_exporter_data(config: Config) -> None:
     """Query exporter endpoints and collect data."""
-    output_dir = config.settings.collection_path
     for target in config.targets:
         url = f"http://{target.endpoint}/"
+        tar = f"{target.customer}_@_{target.site}_@_{target.model}_@_{TIMESTAMP}.tar"
+        tar_path = os.path.join(config.settings.collection_path, tar)
         for endpoint in ENDPOINTS:
             try:
-                content = requests.get(url + endpoint)
+                content = requests.get(url + endpoint, timeout=60)
                 content.raise_for_status()
             except requests.exceptions.RequestException as exc:
-                raise CollectionError(f"Failed to collect data from target '{target.endpoint}': f{exc}")
+                raise CollectionError(
+                    f"Failed to collect data from target '{target.endpoint}': f{exc}"
+                ) from exc
 
-            path = os.path.join(
-                output_dir,
-                f"{endpoint}_@_{target.hostname}_@_{TIMESTAMP}",
-            )
-            with open(path, "w", encoding="UTF-8") as file:
-                file.write(content.text)
-            tar_name = (
-                f"{target.customer}_@_{target.site}_@_{target.model}_@_{TIMESTAMP}.tar"
-            )
-            tar_path = os.path.join(
-                output_dir,
-                tar_name,
-            )
-            with tarfile.open(tar_path, "a:", encoding="UTF-8") as tar_file:
-                tar_file.add(path)
-            os.remove(path)
+            file_name = f"{endpoint}_@_{target.hostname}_@_{TIMESTAMP}"
+            _add_file_to_tar(file_name, content.text, tar_path)
 
 
 async def get_controller(config: Config) -> Controller:
@@ -60,12 +64,8 @@ async def get_controller(config: Config) -> Controller:
     return controller
 
 
-async def get_juju_data(config: Config, controller: Controller):
+async def get_juju_data(config: Config, controller: Controller) -> None:
     """Query Juju controller and collect information about models."""
-    customer = config.settings.customer
-    site = config.settings.site
-    output_dir = config.settings.collection_path
-
     model_uuids = await controller.model_uuids()
 
     for model_name in model_uuids.keys():
@@ -79,24 +79,19 @@ async def get_juju_data(config: Config, controller: Controller):
             else:
                 raise exc
         await model.disconnect()
-        status_path = os.path.join(
-            output_dir,
-            f"juju_status_@_{model_name}_@_{TIMESTAMP}",
+
+        status_file = f"juju_status_@_{model_name}_@_{TIMESTAMP}"
+        bundle_file = f"juju_bundle_@_{model_name}_@_{TIMESTAMP}"
+        tar = (
+            f"{config.settings.customer}_@_{config.settings.site}_@_{model_name}_"
+            "@_{TIMESTAMP}.tar"
         )
-        bundle_path = os.path.join(
-            output_dir,
-            f"juju_bundle_@_{model_name}_@_{TIMESTAMP}",
-        )
-        with open(status_path, "w", encoding="UTF-8") as file:
-            file.write(status.to_json())
-        tar_name = f"{customer}_@_{site}_@_{model_name}_@_{TIMESTAMP}.tar"
         tar_path = os.path.join(
-            output_dir,
-            tar_name,
+            config.settings.collection_path,
+            tar,
         )
-        with tarfile.open(tar_path, "a:", encoding="UTF-8") as tar_file:
-            tar_file.add(status_path)
-        os.remove(status_path)
+
+        _add_file_to_tar(status_file, status.to_json(), tar_path)
 
         bundle_yaml = yaml.load_all(bundle, Loader=yaml.FullLoader)
         for data in bundle_yaml:
@@ -104,15 +99,7 @@ async def get_juju_data(config: Config, controller: Controller):
             # skip SAAS; multiple documents, we need to import only the bundle
             if "offers" in bundle_json:
                 continue
-            with open(bundle_path, "w", encoding="UTF-8") as file:
-                file.write(bundle_json)
-            tar_name = f"{customer}_@_{site}_@_{model_name}_@_{TIMESTAMP}.tar"
-            tar_path = os.path.join(
-                output_dir,
-                tar_name,
-            )
-            with tarfile.open(tar_path, "a:", encoding="UTF-8") as tar_file:
-                tar_file.add(bundle_path)
-            os.remove(bundle_path)
+
+            _add_file_to_tar(bundle_file, bundle_json, tar_path)
 
     await controller.disconnect()

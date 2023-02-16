@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
+"""CLI Entrypoint to the software-inventory-collector."""
 import argparse
 import sys
-import yaml
 
-from inventory_collector import Config, get_controller, get_exporter_data, get_juju_data
-from inventory_collector.exception import ConfigError, ConfigMissingKeyError
+import yaml
 from juju import jasyncio
-from juju.errors import JujuError
 from juju.controller import Controller
+from juju.errors import JujuError
+
+from inventory_collector.collector import (
+    get_controller,
+    get_exporter_data,
+    get_juju_data,
+)
+from inventory_collector.config import Config
+from inventory_collector.exception import ConfigError, ConfigMissingKeyError
 
 
 def parse_cli() -> argparse.Namespace:
@@ -25,7 +32,7 @@ def parse_cli() -> argparse.Namespace:
         action="store_true",
         default=False,
         help="Verifies succesfull connection to the controller but no output "
-             "is produced.",
+        "is produced.",
     )
     return arg_parser.parse_args()
 
@@ -50,7 +57,7 @@ def parse_config(config_path: str) -> Config:
     return config
 
 
-def main():
+def main() -> None:
     """Run inventory collector."""
     args = parse_cli()
 

@@ -2,6 +2,8 @@
 from dataclasses import dataclass, fields
 from typing import ClassVar, Dict, List, get_args, get_origin
 
+from typing_extensions import Self
+
 from inventory_collector.exception import ConfigMissingKeyError
 
 
@@ -10,7 +12,7 @@ class _BaseConfig:
     NAME: ClassVar[str] = ""
 
     @classmethod
-    def from_dict(cls, source: Dict) -> "_BaseConfig":
+    def from_dict(cls, source: Dict) -> Self:
         """Factory method that creates config object from raw config data.
 
         This method finds values for each dataclass attributes specified in the class.
@@ -28,20 +30,18 @@ class _BaseConfig:
         try:
             for field in fields(cls):
                 origin_type = get_origin(field.type)
-                setting_value = source[field.name]
+                value = source[field.name]
                 if origin_type == list:
                     # Handle lists of simple and nested config values
                     nested_type = get_args(field.type)[0]
                     if issubclass(nested_type, _BaseConfig):
-                        kwargs[field.name] = [
-                            nested_type(**value) for value in setting_value
-                        ]
+                        kwargs[field.name] = [nested_type(**value) for value in value]
                     else:
-                        kwargs[field.name] = setting_value
+                        kwargs[field.name] = value
                 elif issubclass(field.type, _BaseConfig):
-                    kwargs[field.name] = field.type.from_dict(setting_value)
+                    kwargs[field.name] = field.type.from_dict(value)  # type: ignore
                 else:
-                    kwargs[field.name] = setting_value
+                    kwargs[field.name] = value
         except KeyError as exc:
             raise ConfigMissingKeyError(f"{cls.NAME}.{exc.args[0]}") from exc
 
