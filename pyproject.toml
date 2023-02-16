@@ -14,7 +14,7 @@ PyYAML = "^6.0"
 juju = "2.9.38.1"
 
 [tool.poetry.scripts]
-inventory-collector = "inventory_collector.collector:main"
+inventory-collector = "inventory_collector.cli:main"
 
 [build-system]
 requires = ["poetry-core"]

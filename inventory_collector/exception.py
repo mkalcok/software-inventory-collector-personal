@@ -12,3 +12,7 @@ class ConfigMissingKeyError(ConfigError):
         """Initiate exception instance."""
         super().__init__()
         self.key_name = key_name
+
+
+class CollectionError(Exception):
+    """Error occurred while collecting data from exporter."""
