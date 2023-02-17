@@ -31,7 +31,7 @@ def parse_cli() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         default=False,
-        help="Verifies succesfull connection to the controller but no output "
+        help="Verifies successful connection to the controller but no output "
         "is produced.",
     )
     return arg_parser.parse_args()
@@ -78,8 +78,17 @@ def main() -> None:
         print("OK.")
         sys.exit(0)
 
-    get_exporter_data(config)
-    jasyncio.run(get_juju_data(config, controller))
+    try:
+        get_exporter_data(config)
+        jasyncio.run(get_juju_data(config, controller))
+        exit_code = 0
+    except Exception as exc:
+        print(f"Failed to collect data: {exc}")
+        exit_code = 1
+    finally:
+        jasyncio.run(controller.disconnect())
+
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

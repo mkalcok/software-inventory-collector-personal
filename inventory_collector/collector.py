@@ -84,7 +84,7 @@ async def get_juju_data(config: Config, controller: Controller) -> None:
         bundle_file = f"juju_bundle_@_{model_name}_@_{TIMESTAMP}"
         tar = (
             f"{config.settings.customer}_@_{config.settings.site}_@_{model_name}_"
-            "@_{TIMESTAMP}.tar"
+            f"@_{TIMESTAMP}.tar"
         )
         tar_path = os.path.join(
             config.settings.collection_path,
