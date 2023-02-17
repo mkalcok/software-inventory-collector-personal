@@ -1,10 +1,10 @@
-"""Module containing inventory-exporter configuration classes."""
+"""Module containing software-inventory-collector configuration classes."""
 from dataclasses import dataclass, fields
 from typing import ClassVar, Dict, List, get_args, get_origin
 
 from typing_extensions import Self
 
-from inventory_collector.exception import ConfigMissingKeyError
+from software_inventory_collector.exception import ConfigMissingKeyError
 
 
 @dataclass

@@ -1,4 +1,4 @@
-"""Module containing exceptions used by inventory-collector."""
+"""Module containing exceptions used by software-inventory-collector."""
 
 
 class ConfigError(Exception):

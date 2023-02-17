@@ -10,8 +10,8 @@ import yaml
 from juju.controller import Controller
 from juju.errors import JujuAPIError
 
-from inventory_collector.config import Config
-from inventory_collector.exception import CollectionError
+from software_inventory_collector.config import Config
+from software_inventory_collector.exception import CollectionError
 
 ENDPOINTS = ["dpkg", "snap", "kernel"]
 

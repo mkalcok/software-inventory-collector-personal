@@ -1,1 +1,1 @@
-# Inventory collector
+# Software Inventory Collector

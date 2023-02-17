@@ -8,23 +8,23 @@ from juju import jasyncio
 from juju.controller import Controller
 from juju.errors import JujuError
 
-from inventory_collector.collector import (
+from software_inventory_collector.collector import (
     get_controller,
     get_exporter_data,
     get_juju_data,
 )
-from inventory_collector.config import Config
-from inventory_collector.exception import ConfigError, ConfigMissingKeyError
+from software_inventory_collector.config import Config
+from software_inventory_collector.exception import ConfigError, ConfigMissingKeyError
 
 
 def parse_cli() -> argparse.Namespace:
     """Parse CLI arguments."""
-    arg_parser = argparse.ArgumentParser("Collect inventory data")
+    arg_parser = argparse.ArgumentParser("Collect software inventory data")
     arg_parser.add_argument(
         "-c",
         "--config",
         help="Configuration file path.",
-        default="/var/snap/inventory-collector/current/config.yaml",
+        default="/var/snap/software-inventory-collector/current/config.yaml",
     )
     arg_parser.add_argument(
         "-d",
@@ -58,7 +58,7 @@ def parse_config(config_path: str) -> Config:
 
 
 def main() -> None:
-    """Run inventory collector."""
+    """Run software inventory collector."""
     args = parse_cli()
 
     try:
@@ -82,7 +82,7 @@ def main() -> None:
         get_exporter_data(config)
         jasyncio.run(get_juju_data(config, controller))
         exit_code = 0
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=W0718
         print(f"Failed to collect data: {exc}")
         exit_code = 1
     finally:

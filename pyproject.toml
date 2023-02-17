@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "inventory-collector"
+name = "software-inventory-collector"
 version = "0.1.0"
 description = "Client collecting data exported by https://github.com/dparv/inventory-exporter"
 authors = ["Diko Parvanov <diko.parvanov@canonical.com>"]
 license = "GPL-3.0-or-later"
 readme = "README.md"
-packages = [{include = "inventory_collector"}]
+packages = [{include = "software_inventory_collector"}]
 
 [tool.poetry.dependencies]
 python = "^3.8.1"
@@ -14,7 +14,7 @@ PyYAML = "^6.0"
 juju = "2.9.38.1"
 
 [tool.poetry.scripts]
-inventory-collector = "inventory_collector.cli:main"
+software-inventory-collector = "software_inventory_collector.cli:main"
 
 [build-system]
 requires = ["poetry-core"]

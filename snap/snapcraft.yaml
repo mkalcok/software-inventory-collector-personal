@@ -9,21 +9,14 @@ description: |
 grade: devel
 confinement: strict
 
-plugs:
-  dot-local-share-juju:
-    interface: personal-files
-    read:
-      - $HOME/.local/share/juju
-
 apps:
-  inventory-collector:
-    command: bin/inventory-collector
+  software-inventory-collector:
+    command: bin/software-inventory-collector
     plugs:
-      - dot-local-share-juju
       - network
 
 parts:
-  juju-inventory-collector:
+  software-inventory-collector:
     plugin: python
     source: .
     python-packages:
